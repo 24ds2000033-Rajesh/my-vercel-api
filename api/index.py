@@ -1,11 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
 app = FastAPI()
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,6 +12,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.options("/")
+@app.options("/api")
+async def options_handler():
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        },
+    )
+
 
 DATA = [
     {"region":"apac","service":"analytics","latency_ms":205.66,"uptime_pct":98.256,"timestamp":20250301},
@@ -55,9 +68,11 @@ DATA = [
     {"region":"amer","service":"recommendations","latency_ms":209.61,"uptime_pct":98.242,"timestamp":20250312}
 ]
 
+
 class LatencyRequest(BaseModel):
     regions: List[str]
     threshold_ms: float
+
 
 def percentile(values, p=95):
     values = sorted(values)
@@ -74,16 +89,20 @@ def percentile(values, p=95):
 
     return values[f] + (k - f) * (values[c] - values[f])
 
+
 @app.get("/")
-def health():
+async def health():
     return {"status": "ok"}
 
+
 @app.post("/")
-def check_latency(payload: LatencyRequest):
+async def check_latency(payload: LatencyRequest):
     result = {}
 
-    for region in payload.regions:
-        rows = [r for r in DATA if r["region"] == region.lower()]
+    for region_name in payload.regions:
+        region = region_name.lower().strip()
+
+        rows = [r for r in DATA if r["region"] == region]
 
         if not rows:
             continue
@@ -93,9 +112,12 @@ def check_latency(payload: LatencyRequest):
 
         result[region] = {
             "avg_latency": round(sum(latencies) / len(latencies), 2),
-            "p95_latency": round(percentile(latencies), 2),
+            "p95_latency": round(percentile(latencies, 95), 2),
             "avg_uptime": round(sum(uptimes) / len(uptimes), 3),
-            "breaches": sum(1 for x in latencies if x > payload.threshold_ms)
+            "breaches": sum(
+                1 for latency in latencies
+                if latency > payload.threshold_ms
+            )
         }
 
     return result
