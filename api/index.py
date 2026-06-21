@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import List
 
@@ -60,23 +60,15 @@ def get_percentile(data_list, percentile):
     else:
         return sorted_list[f]
 
-# Global middleware to enforce CORS headers on EVERY response
-@app.middleware("http")
-async def add_cors_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
-# Handle explicit Preflight OPTIONS requests directly
+# Catch-all OPTIONS route handler for pre-flights
 @app.options("/api")
-@app.options("/api/")
-def options_handler():
+@app.options("/api/{catchall:path}")
+def handle_options():
     return Response(status_code=200)
 
+# Catch-all POST route handler for calculation requests
 @app.post("/api")
-@app.post("/api/")
+@app.post("/api/{catchall:path}")
 def check_latency(payload: LatencyRequest):
     response_data = {}
     
