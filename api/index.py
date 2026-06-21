@@ -97,7 +97,7 @@ async def health():
 
 @app.post("/")
 async def check_latency(payload: LatencyRequest):
-    result = {}
+    regions = {}
 
     for region_name in payload.regions:
         region = region_name.lower().strip()
@@ -110,7 +110,7 @@ async def check_latency(payload: LatencyRequest):
         latencies = [r["latency_ms"] for r in rows]
         uptimes = [r["uptime_pct"] for r in rows]
 
-        result[region] = {
+        regions[region] = {
             "avg_latency": round(sum(latencies) / len(latencies), 2),
             "p95_latency": round(percentile(latencies, 95), 2),
             "avg_uptime": round(sum(uptimes) / len(uptimes), 3),
@@ -120,4 +120,4 @@ async def check_latency(payload: LatencyRequest):
             )
         }
 
-    return result
+    return {"regions": regions}
