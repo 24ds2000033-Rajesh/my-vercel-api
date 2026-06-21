@@ -5,13 +5,13 @@ from typing import List
 
 app = FastAPI()
 
-# Enable CORS for POST requests from any origin
+# 1. Configure CORS Middleware properly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=False,  # Crucial: Must be False if allow_origins=["*"]
+    allow_methods=["*"],  # Allows all methods (POST, OPTIONS, etc.)
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Embedded Dataset
@@ -70,14 +70,14 @@ def get_percentile(data_list, percentile):
     else:
         return sorted_list[f]
 
+# 2. Match both /api and /api/ paths to avoid redirect header drops
 @app.post("/api")
+@app.post("/api/")
 def check_latency(payload: LatencyRequest):
     response_data = {}
     
     for region in payload.regions:
-        # Filter metrics for target region
         region_metrics = [item for item in DATA if item["region"] == region.lower()]
-        
         if not region_metrics:
             continue
             
