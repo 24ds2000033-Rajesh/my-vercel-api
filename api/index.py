@@ -1,18 +1,8 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Response, Request
 from pydantic import BaseModel
 from typing import List
 
 app = FastAPI()
-
-# 1. Configure CORS Middleware properly
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=False,  # Crucial: Must be False if allow_origins=["*"]
-    allow_methods=["*"],  # Allows all methods (POST, OPTIONS, etc.)
-    allow_headers=["*"],  # Allows all headers
-)
 
 # Embedded Dataset
 DATA = [
@@ -70,7 +60,21 @@ def get_percentile(data_list, percentile):
     else:
         return sorted_list[f]
 
-# 2. Match both /api and /api/ paths to avoid redirect header drops
+# Global middleware to enforce CORS headers on EVERY response
+@app.middleware("http")
+async def add_cors_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+# Handle explicit Preflight OPTIONS requests directly
+@app.options("/api")
+@app.options("/api/")
+def options_handler():
+    return Response(status_code=200)
+
 @app.post("/api")
 @app.post("/api/")
 def check_latency(payload: LatencyRequest):
